@@ -107,71 +107,63 @@ def is_regra_nova(data_inicial_str):
 
 def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido, fator, percentual, indicador_nome="Poupança"):
     """
-    Generates a result image that visually replicates the real BCB Calculadora do Cidadão
-    output table (dark blue headers, labeled rows, exact color scheme).
+    Generates a result image that matches the exact 368x263 px dimensions, row heights,
+    colors (#003d79, #4a73a2, #f2f4f6), and aspect ratio of real BCB calculator tables.
     """
-    # --- Configuration ---
-    W = 520                     # image width
-    PAD_LEFT = 12               # left padding inside table
-    PAD_RIGHT = 12
-    COL_VALUE_X = W - PAD_RIGHT # right-align anchor for values
-    ROW_H = 26                  # row height
-    HEADER_H = 28               # section header height
+    W = 368
+    ROW_H = 26
+    HEADER_H = 26
+    PAD_LEFT = 6
+    PAD_RIGHT = 6
+    COL_VALUE_X = W - PAD_RIGHT
 
-    # Colors (exact BCB palette)
-    CLR_DARK_BLUE = (0, 51, 102)        # #003366 — main header bg
-    CLR_MID_BLUE = (51, 102, 153)       # #336699 — sub-header bg
+    CLR_DARK_BLUE = (0, 61, 121)       # #003d79 — Main header bg
+    CLR_MID_BLUE = (74, 115, 162)      # #4a73a2 — Sub header bg
     CLR_WHITE = (255, 255, 255)
-    CLR_ROW_BG1 = (240, 244, 248)       # alternating row light
-    CLR_ROW_BG2 = (255, 255, 255)       # alternating row white
-    CLR_TEXT_DARK = (30, 30, 30)         # label text
-    CLR_TEXT_VALUE = (0, 0, 0)           # value text
-    CLR_BORDER = (180, 195, 210)        # subtle border
+    CLR_ROW_BG1 = (242, 244, 246)      # #f2f4f6 — Alternating row light
+    CLR_ROW_BG2 = (255, 255, 255)
+    CLR_TEXT_DARK = (0, 0, 0)
 
-    # Fonts — try system fonts, fallback to default
     try:
         font_header = ImageFont.truetype("arialbd.ttf", 13)
-        font_section = ImageFont.truetype("arialbd.ttf", 12)
+        font_section = ImageFont.truetype("arialbd.ttf", 13)
         font_label = ImageFont.truetype("arial.ttf", 12)
         font_value = ImageFont.truetype("arial.ttf", 12)
         font_value_bold = ImageFont.truetype("arialbd.ttf", 12)
     except IOError:
         try:
             font_header = ImageFont.truetype("DejaVuSans-Bold.ttf", 13)
-            font_section = ImageFont.truetype("DejaVuSans-Bold.ttf", 12)
+            font_section = ImageFont.truetype("DejaVuSans-Bold.ttf", 13)
             font_label = ImageFont.truetype("DejaVuSans.ttf", 12)
             font_value = ImageFont.truetype("DejaVuSans.ttf", 12)
             font_value_bold = ImageFont.truetype("DejaVuSans-Bold.ttf", 12)
         except IOError:
             font_header = font_section = font_label = font_value = font_value_bold = ImageFont.load_default()
 
-    # Map indicator names
     indicador_map = {
-        "Poupança": "Correção pela Poupança",
-        "SELIC": "Correção pela SELIC",
-        "CDI": "Correção pelo CDI",
-        "TR": "Correção pela TR",
-        "IGP-M": "Correção pelo IGP-M (FGV)",
-        "1": "Correção pelo IGP-M (FGV)",
-        "2": "Correção pela TR",
-        "3": "Correção pela Poupança",
-        "4": "Correção pela SELIC",
-        "5": "Correção pelo CDI",
-        "6": "Correção pela Taxa Legal",
+        "Poupança": "Poupança",
+        "SELIC": "SELIC",
+        "CDI": "CDI",
+        "TR": "TR",
+        "IGP-M": "IGP-M (FGV)",
+        "1": "IGP-M (FGV)",
+        "2": "TR",
+        "3": "Poupança",
+        "4": "SELIC",
+        "5": "CDI",
+        "6": "Taxa Legal",
     }
-    titulo_correcao = indicador_map.get(indicador_nome, f"Correção pela {indicador_nome}")
+    ind_name = indicador_map.get(str(indicador_nome), str(indicador_nome))
+    header_title = f"Dados básicos da correção pela {ind_name}"
 
-    # Format value with R$ prefix if needed
     def fmt_val(v):
         s = str(v).strip()
         if not s or s == '-':
             return '-'
         if s.startswith('R$'):
             return f"{s} (REAL)"
-        # If it looks like a number with comma decimal
         if ',' in s:
             return f"R$ {s} (REAL)"
-        # If float-like
         try:
             fv = float(s.replace('.', '').replace(',', '.'))
             formatted = f"{fv:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -179,11 +171,11 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         except Exception:
             return s
 
-    # --- Build row data ---
     info_rows = [
         ("Data inicial", str(data_inicial)),
         ("Data final", str(data_final)),
         ("Valor nominal", fmt_val(valor_orig)),
+        ("Regra de correção", "Nova" if "Poupança" in ind_name else "Padrão"),
     ]
 
     calc_rows = [
@@ -192,75 +184,54 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         ("Valor corrigido na data final", fmt_val(valor_corrigido)),
     ]
 
-    # --- Calculate image height ---
-    y = 0
-    y += HEADER_H            # "Dados básicos da correção..."
-    y += HEADER_H            # "Dados informados"
-    y += ROW_H * len(info_rows)
-    y += HEADER_H            # "Dados calculados"
-    y += ROW_H * len(calc_rows)
-    y += 4                    # bottom padding
-    H = y
+    H = HEADER_H + 2 + HEADER_H + 1 + (ROW_H * len(info_rows)) + HEADER_H + (ROW_H * len(calc_rows))
 
     img = Image.new('RGB', (W, H), color=CLR_WHITE)
     draw = ImageDraw.Draw(img)
 
     y = 0
 
-    # --- Header: "Dados básicos da correção pela Poupança" ---
+    # 1. Main Header
     draw.rectangle([0, y, W, y + HEADER_H], fill=CLR_DARK_BLUE)
-    draw.text((PAD_LEFT, y + 7), f"Dados básicos da {titulo_correcao.lower()}", fill=CLR_WHITE, font=font_header)
-    y += HEADER_H
+    draw.text((PAD_LEFT, y + 5), header_title, fill=CLR_WHITE, font=font_header)
+    y += HEADER_H + 2
 
-    # --- Sub-header: "Dados informados" ---
+    # 2. Sub Header: Dados informados
     draw.rectangle([0, y, W, y + HEADER_H], fill=CLR_MID_BLUE)
-    draw.text((PAD_LEFT, y + 7), "Dados informados", fill=CLR_WHITE, font=font_section)
-    y += HEADER_H
+    draw.text((PAD_LEFT, y + 5), "Dados informados", fill=CLR_WHITE, font=font_section)
+    y += HEADER_H + 1
 
-    # --- Info rows ---
+    # 3. Info rows
     for i, (label, value) in enumerate(info_rows):
         bg = CLR_ROW_BG1 if i % 2 == 0 else CLR_ROW_BG2
-        draw.rectangle([0, y, W, y + ROW_H], fill=bg)
-        draw.line([0, y, W, y], fill=CLR_BORDER, width=1)
-        draw.text((PAD_LEFT + 8, y + 6), label, fill=CLR_TEXT_DARK, font=font_label)
-        # Right-align value
+        draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+        draw.text((PAD_LEFT, y + 5), label, fill=CLR_TEXT_DARK, font=font_label)
         try:
             val_bbox = draw.textbbox((0, 0), value, font=font_value)
             val_w = val_bbox[2] - val_bbox[0]
         except AttributeError:
             val_w = len(value) * 7
-        draw.text((COL_VALUE_X - val_w, y + 6), value, fill=CLR_TEXT_VALUE, font=font_value)
+        draw.text((COL_VALUE_X - val_w, y + 5), value, fill=CLR_TEXT_DARK, font=font_value)
         y += ROW_H
 
-    # Border below info section
-    draw.line([0, y, W, y], fill=CLR_BORDER, width=1)
-
-    # --- Sub-header: "Dados calculados" ---
+    # 4. Sub Header: Dados calculados
     draw.rectangle([0, y, W, y + HEADER_H], fill=CLR_MID_BLUE)
-    draw.text((PAD_LEFT, y + 7), "Dados calculados", fill=CLR_WHITE, font=font_section)
+    draw.text((PAD_LEFT, y + 5), "Dados calculados", fill=CLR_WHITE, font=font_section)
     y += HEADER_H
 
-    # --- Calc rows ---
+    # 5. Calc rows
     for i, (label, value) in enumerate(calc_rows):
         bg = CLR_ROW_BG1 if i % 2 == 0 else CLR_ROW_BG2
-        draw.rectangle([0, y, W, y + ROW_H], fill=bg)
-        draw.line([0, y, W, y], fill=CLR_BORDER, width=1)
-        draw.text((PAD_LEFT + 8, y + 6), label, fill=CLR_TEXT_DARK, font=font_label)
-        # Right-align value (bold for last row — valor corrigido)
+        draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+        draw.text((PAD_LEFT, y + 5), label, fill=CLR_TEXT_DARK, font=font_label)
         use_font = font_value_bold if i == len(calc_rows) - 1 else font_value
         try:
             val_bbox = draw.textbbox((0, 0), value, font=use_font)
             val_w = val_bbox[2] - val_bbox[0]
         except AttributeError:
             val_w = len(value) * 7
-        draw.text((COL_VALUE_X - val_w, y + 6), value, fill=CLR_TEXT_VALUE, font=use_font)
+        draw.text((COL_VALUE_X - val_w, y + 5), value, fill=CLR_TEXT_DARK, font=use_font)
         y += ROW_H
-
-    # Bottom border
-    draw.line([0, y, W, y], fill=CLR_BORDER, width=1)
-
-    # Outer border
-    draw.rectangle([0, 0, W - 1, H - 1], outline=CLR_DARK_BLUE, width=1)
 
     buf = BytesIO()
     img.save(buf, format='PNG')
