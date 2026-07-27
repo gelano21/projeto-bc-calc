@@ -1,0 +1,23 @@
+# Python & Environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Temporary test / reference files
+ref_*.png
+ref_*.html
+test_*.py
+test_*.png
+inspect_bcb.py
+verify_system.py
+capture_ref.py
+
+# Streamlit local config
+.streamlit/
+
+# OS files
+.DS_Store
+Thumbs.db
