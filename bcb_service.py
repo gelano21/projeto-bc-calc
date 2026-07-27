@@ -85,15 +85,20 @@ def format_currency_input(val):
     return s
 
 def parse_currency_output(val_str):
-    """Parses string like 'R$ 1.465,87 (REAL)' into float 1465.87."""
+    """Parses string like 'R$ 1.465,87 (REAL)' or '1.465,87' into float 1465.87."""
+    if not val_str:
+        return None
+    s = str(val_str).strip().replace('R$', '').replace('(REAL)', '').replace(' ', '')
+    if not s or s == '-':
+        return None
     try:
-        match = re.search(r'R\$\s*([\d\.,]+)', str(val_str))
-        if match:
-            raw = match.group(1).replace('.', '').replace(',', '.')
-            return float(raw)
+        if ',' in s and '.' in s:
+            s = s.replace('.', '').replace(',', '.')
+        elif ',' in s:
+            s = s.replace(',', '.')
+        return float(s)
     except Exception:
-        pass
-    return None
+        return None
 
 def is_regra_nova(data_inicial_str):
     """Determines if Poupança deposit is after 03/05/2012 (Nova Regra)."""
@@ -104,42 +109,50 @@ def is_regra_nova(data_inicial_str):
         return dt > cutoff
     except Exception:
         return True
+def get_best_font(size, bold=False):
+    """Robust cross-platform font loader for Windows, Mac, and Linux/Streamlit Cloud."""
+    font_names = [
+        "arialbd.ttf" if bold else "arial.ttf",
+        "calibri.ttf" if not bold else "calibrib.ttf",
+        "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
+        "LiberationSans-Bold.ttf" if bold else "LiberationSans-Regular.ttf",
+        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+    ]
+    for name in font_names:
+        try:
+            return ImageFont.truetype(name, size)
+        except Exception:
+            continue
+    try:
+        return ImageFont.load_default(size=size)
+    except Exception:
+        return ImageFont.load_default()
 
 def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido, fator, percentual, indicador_nome="Poupança"):
     """
-    Generates a 3x High-DPI (1104x789 px) result image that produces crystal-clear,
-    pin-sharp text and accents when placed inside Microsoft Word documents or web previews.
+    Generates a high-legibility 500x317 px result image matching BCB style with crisp text,
+    proper font sizing, clear alignment, and perfect accent rendering across all OS platforms.
     """
-    SCALE = 3
-    W = 368 * SCALE        # 1104 px
-    ROW_H = 26 * SCALE      # 78 px
-    HEADER_H = 26 * SCALE   # 78 px
-    PAD_LEFT = 8 * SCALE    # 24 px
-    PAD_RIGHT = 8 * SCALE
+    W = 500
+    HEADER_H = 34
+    ROW_H = 30
+    PAD_LEFT = 12
+    PAD_RIGHT = 12
     COL_VALUE_X = W - PAD_RIGHT
 
-    CLR_DARK_BLUE = (0, 61, 121)       # #003d79 — Main header bg
-    CLR_MID_BLUE = (74, 115, 162)      # #4a73a2 — Sub header bg
+    CLR_DARK_BLUE = (0, 51, 102)        # #003366 — BCB header
+    CLR_MID_BLUE = (51, 102, 153)       # #336699 — BCB sub-header
     CLR_WHITE = (255, 255, 255)
-    CLR_ROW_BG1 = (242, 244, 246)      # #f2f4f6 — Alternating row light
+    CLR_ROW_BG1 = (242, 246, 250)       # Light row bg
     CLR_ROW_BG2 = (255, 255, 255)
     CLR_TEXT_DARK = (20, 20, 20)
+    CLR_BORDER = (220, 230, 240)
 
-    try:
-        font_header = ImageFont.truetype("arialbd.ttf", 13 * SCALE)
-        font_section = ImageFont.truetype("arialbd.ttf", 13 * SCALE)
-        font_label = ImageFont.truetype("arial.ttf", 12 * SCALE)
-        font_value = ImageFont.truetype("arial.ttf", 12 * SCALE)
-        font_value_bold = ImageFont.truetype("arialbd.ttf", 12 * SCALE)
-    except IOError:
-        try:
-            font_header = ImageFont.truetype("DejaVuSans-Bold.ttf", 13 * SCALE)
-            font_section = ImageFont.truetype("DejaVuSans-Bold.ttf", 13 * SCALE)
-            font_label = ImageFont.truetype("DejaVuSans.ttf", 12 * SCALE)
-            font_value = ImageFont.truetype("DejaVuSans.ttf", 12 * SCALE)
-            font_value_bold = ImageFont.truetype("DejaVuSans-Bold.ttf", 12 * SCALE)
-        except IOError:
-            font_header = font_section = font_label = font_value = font_value_bold = ImageFont.load_default()
+    font_header = get_best_font(15, bold=True)
+    font_section = get_best_font(14, bold=True)
+    font_label = get_best_font(13, bold=False)
+    font_value = get_best_font(13, bold=False)
+    font_value_bold = get_best_font(14, bold=True)
 
     indicador_map = {
         "Poupança": "Poupança",
@@ -185,7 +198,7 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         ("Valor corrigido na data final", fmt_val(valor_corrigido)),
     ]
 
-    H = HEADER_H + (2 * SCALE) + HEADER_H + (1 * SCALE) + (ROW_H * len(info_rows)) + HEADER_H + (ROW_H * len(calc_rows))
+    H = HEADER_H + 2 + HEADER_H + 1 + (ROW_H * len(info_rows)) + HEADER_H + (ROW_H * len(calc_rows)) + 2
 
     img = Image.new('RGB', (W, H), color=CLR_WHITE)
     draw = ImageDraw.Draw(img)
@@ -194,45 +207,50 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
 
     # 1. Main Header
     draw.rectangle([0, y, W, y + HEADER_H], fill=CLR_DARK_BLUE)
-    draw.text((PAD_LEFT, y + (14 * SCALE // 2)), header_title, fill=CLR_WHITE, font=font_header)
-    y += HEADER_H + (2 * SCALE)
+    draw.text((PAD_LEFT, y + 7), header_title, fill=CLR_WHITE, font=font_header)
+    y += HEADER_H + 2
 
     # 2. Sub Header: Dados informados
     draw.rectangle([0, y, W, y + HEADER_H], fill=CLR_MID_BLUE)
-    draw.text((PAD_LEFT, y + (14 * SCALE // 2)), "Dados informados", fill=CLR_WHITE, font=font_section)
-    y += HEADER_H + (1 * SCALE)
+    draw.text((PAD_LEFT, y + 7), "Dados informados", fill=CLR_WHITE, font=font_section)
+    y += HEADER_H + 1
 
     # 3. Info rows
     for i, (label, value) in enumerate(info_rows):
         bg = CLR_ROW_BG1 if i % 2 == 0 else CLR_ROW_BG2
-        draw.rectangle([0, y, W, y + ROW_H - (1 * SCALE)], fill=bg)
-        draw.text((PAD_LEFT, y + (14 * SCALE // 2)), label, fill=CLR_TEXT_DARK, font=font_label)
+        draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+        draw.line([0, y, W, y], fill=CLR_BORDER, width=1)
+        draw.text((PAD_LEFT, y + 6), label, fill=CLR_TEXT_DARK, font=font_label)
         try:
             val_bbox = draw.textbbox((0, 0), value, font=font_value)
             val_w = val_bbox[2] - val_bbox[0]
         except AttributeError:
-            val_w = len(value) * 7 * SCALE
-        draw.text((COL_VALUE_X - val_w, y + (14 * SCALE // 2)), value, fill=CLR_TEXT_DARK, font=font_value)
+            val_w = len(value) * 8
+        draw.text((COL_VALUE_X - val_w, y + 6), value, fill=CLR_TEXT_DARK, font=font_value)
         y += ROW_H
 
     # 4. Sub Header: Dados calculados
     draw.rectangle([0, y, W, y + HEADER_H], fill=CLR_MID_BLUE)
-    draw.text((PAD_LEFT, y + (14 * SCALE // 2)), "Dados calculados", fill=CLR_WHITE, font=font_section)
+    draw.text((PAD_LEFT, y + 7), "Dados calculados", fill=CLR_WHITE, font=font_section)
     y += HEADER_H
 
     # 5. Calc rows
     for i, (label, value) in enumerate(calc_rows):
         bg = CLR_ROW_BG1 if i % 2 == 0 else CLR_ROW_BG2
-        draw.rectangle([0, y, W, y + ROW_H - (1 * SCALE)], fill=bg)
-        draw.text((PAD_LEFT, y + (14 * SCALE // 2)), label, fill=CLR_TEXT_DARK, font=font_label)
+        draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+        draw.line([0, y, W, y], fill=CLR_BORDER, width=1)
+        draw.text((PAD_LEFT, y + 6), label, fill=CLR_TEXT_DARK, font=font_label)
         use_font = font_value_bold if i == len(calc_rows) - 1 else font_value
         try:
             val_bbox = draw.textbbox((0, 0), value, font=use_font)
             val_w = val_bbox[2] - val_bbox[0]
         except AttributeError:
-            val_w = len(value) * 7 * SCALE
-        draw.text((COL_VALUE_X - val_w, y + (14 * SCALE // 2)), value, fill=CLR_TEXT_DARK, font=use_font)
+            val_w = len(value) * 8
+        draw.text((COL_VALUE_X - val_w, y + 6), value, fill=CLR_TEXT_DARK, font=use_font)
         y += ROW_H
+
+    # Border
+    draw.rectangle([0, 0, W - 1, H - 1], outline=CLR_DARK_BLUE, width=1)
 
     buf = BytesIO()
     img.save(buf, format='PNG')

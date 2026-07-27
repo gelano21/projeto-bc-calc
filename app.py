@@ -370,7 +370,12 @@ if modo.startswith("🏦"):
 
                 # Calculate KPI Totals
                 total_orig = sum(r.get("valor_original_num", 0.0) for r in resultados)
-                total_corr = sum(r.get("valor_corrigido_num") or r.get("valor_original_num", 0.0) for r in resultados)
+                total_corr = sum(
+                    r.get("valor_corrigido_num")
+                    if (r.get("valor_corrigido_num") is not None)
+                    else safe_parse_float(r.get("valor_corrigido_str"))
+                    for r in resultados
+                )
                 diferenca = total_corr - total_orig
                 pct_aumento = ((total_corr / total_orig) - 1) * 100 if total_orig > 0 else 0.0
 
