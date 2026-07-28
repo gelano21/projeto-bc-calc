@@ -4,6 +4,7 @@ import datetime
 import urllib.request
 import urllib.parse
 import pandas as pd
+import io
 from bs4 import BeautifulSoup
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont, ImageChops
