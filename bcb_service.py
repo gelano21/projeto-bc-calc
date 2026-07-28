@@ -237,9 +237,9 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     draw.text((PAD_X, y + (4 * SCALE)), t_h2_inf, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 3. Info rows
+    # 3. Info rows (100% solid seamless #F2F4F6 background, zero gap lines!)
     for label, val in info_rows:
-        draw.rectangle([0, y, W, y + ROW_H - (1 * SCALE)], fill=CLR_ROW_BG)
+        draw.rectangle([0, y, W, y + ROW_H], fill=CLR_ROW_BG)
         draw.text((PAD_X, y + (4 * SCALE)), label, fill=CLR_TEXT, font=f_lbl)
         try:
             bbox = draw.textbbox((0, 0), val, font=f_val)
@@ -254,9 +254,9 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     draw.text((PAD_X, y + (4 * SCALE)), t_h2_calc, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 5. Calc rows
+    # 5. Calc rows (100% solid seamless #F2F4F6 background, zero gap lines!)
     for label, val in calc_rows:
-        draw.rectangle([0, y, W, y + ROW_H - (1 * SCALE)], fill=CLR_ROW_BG)
+        draw.rectangle([0, y, W, y + ROW_H], fill=CLR_ROW_BG)
         draw.text((PAD_X, y + (4 * SCALE)), label, fill=CLR_TEXT, font=f_lbl)
         try:
             bbox = draw.textbbox((0, 0), val, font=f_val)
