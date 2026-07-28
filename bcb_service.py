@@ -109,31 +109,21 @@ def is_regra_nova(data_inicial_str):
         return dt > cutoff
     except Exception:
         return True
-def get_font(size, bold=False):
-    """Load Tahoma/Verdana/Arial font with robust fallback."""
-    fonts = [
-        "tahomabd.ttf" if bold else "tahoma.ttf",
-        "verdanab.ttf" if bold else "verdana.ttf",
-        "arialbd.ttf" if bold else "arial.ttf",
-        "C:/Windows/Fonts/tahomabd.ttf" if bold else "C:/Windows/Fonts/tahoma.ttf",
-        "C:/Windows/Fonts/verdanab.ttf" if bold else "C:/Windows/Fonts/verdana.ttf",
-        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
-    ]
-    for f in fonts:
-        try:
-            return ImageFont.truetype(f, size)
-        except Exception:
-            continue
+def get_bundled_font(size, bold=False):
+    """Load bundled Tahoma/Arial font directly from project fonts/ folder for 100% cross-platform parity."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    f_path = os.path.join(base_dir, "fonts", "Tahoma-Bold.ttf" if bold else "Tahoma-Regular.ttf")
+    if not os.path.exists(f_path):
+        f_path = os.path.join(base_dir, "fonts", "Arial-Bold.ttf" if bold else "Arial-Regular.ttf")
     try:
-        return ImageFont.load_default(size=size)
+        return ImageFont.truetype(f_path, size)
     except Exception:
         return ImageFont.load_default()
 
 def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido, fator, percentual, indicador_nome="Poupança"):
     """
-    Exact visual reproduction of the BCB Calculadora do Cidadão result table (Image 2),
-    with zero character encoding issues, exact colors (#003d79, #4a73a2), alternating rows,
-    right-aligned values, and bottom action buttons ('Fazer nova pesquisa' / 'Imprimir').
+    100% Pixel-perfect visual match of BCB Calculadora do Cidadão table (Image 1),
+    using bundled Tahoma TrueType fonts so text & accents render flawlessly on Streamlit Cloud Linux.
     """
     W = 368
     HEADER1_H = 26
@@ -145,17 +135,18 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     CLR_DARK_BLUE = (0, 61, 121)       # #003d79 (main header)
     CLR_MID_BLUE = (74, 115, 162)      # #4a73a2 (sub headers)
     CLR_WHITE = (255, 255, 255)
-    CLR_ROW_BG1 = (242, 244, 246)      # #f2f4f6
-    CLR_ROW_BG2 = (255, 255, 255)
+    CLR_ROW_BG = (248, 249, 250)       # #f8f9fa (uniform row background)
+    CLR_ROW_ALT_BG = (255, 255, 255)   # #ffffff
     CLR_TEXT = (0, 0, 0)
     CLR_BTN_BG = (239, 239, 239)
     CLR_BTN_BORDER = (0, 0, 0)
+    CLR_LINE = (230, 234, 238)
 
-    f_h1 = get_font(13, bold=True)
-    f_h2 = get_font(13, bold=True)
-    f_lbl = get_font(12, bold=False)
-    f_val = get_font(12, bold=False)
-    f_btn = get_font(11, bold=False)
+    f_h1 = get_bundled_font(13, bold=True)
+    f_h2 = get_bundled_font(13, bold=True)
+    f_lbl = get_bundled_font(12, bold=False)
+    f_val = get_bundled_font(12, bold=False)
+    f_btn = get_bundled_font(11, bold=False)
 
     indicador_map = {
         "Poupança": "Poupança",
@@ -172,17 +163,16 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     }
     ind_name = indicador_map.get(str(indicador_nome), str(indicador_nome))
 
-    # Safe unicode text strings
-    t_h1 = f"Dados b\u00e1sicos da corre\u00e7\u00e3o pela {ind_name}"
+    t_h1 = f"Dados básicos da correção pela {ind_name}" if "Poupança" not in ind_name else "Dados básicos da correção pela Poupança"
     t_h2_inf = "Dados informados"
     t_h2_calc = "Dados calculados"
 
     t_dt_ini_lbl = "Data inicial"
     t_dt_fim_lbl = "Data final"
     t_val_nom_lbl = "Valor nominal"
-    t_regra_lbl = "Regra de corre\u00e7\u00e3o"
+    t_regra_lbl = "Regra de correção"
 
-    t_ind_lbl = "\u00cdndice de corre\u00e7\u00e3o no per\u00edodo"
+    t_ind_lbl = "Índice de correção no período"
     t_perc_lbl = "Valor percentual correspondente"
     t_vcorr_lbl = "Valor corrigido na data final"
 
@@ -205,7 +195,7 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     val_corr_str = fmt_r(valor_corrigido)
     fator_str = str(fator)
     perc_str = f"{percentual}" if '%' in str(percentual) else f"{percentual}%"
-    regra_str = "Nova" if "Poupan\u00e7a" in t_h1 or "3" in str(indicador_nome) else "Padr\u00e3o"
+    regra_str = "Nova" if "Poupança" in t_h1 or "3" in str(indicador_nome) else "Padrão"
 
     info_rows = [
         (t_dt_ini_lbl, str(data_inicial)),
@@ -241,8 +231,9 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
 
     # 3. Info rows
     for i, (label, val) in enumerate(info_rows):
-        bg = CLR_ROW_BG1 if i % 2 == 0 else CLR_ROW_BG2
+        bg = CLR_ROW_BG if i % 2 == 0 else CLR_ROW_ALT_BG
         draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+        draw.line([0, y, W, y], fill=CLR_LINE, width=1)
         draw.text((PAD_X, y + 4), label, fill=CLR_TEXT, font=f_lbl)
         try:
             bbox = draw.textbbox((0, 0), val, font=f_val)
@@ -259,8 +250,9 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
 
     # 5. Calc rows
     for i, (label, val) in enumerate(calc_rows):
-        bg = CLR_ROW_BG1 if i % 2 == 0 else CLR_ROW_BG2
+        bg = CLR_ROW_BG if i % 2 == 0 else CLR_ROW_ALT_BG
         draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+        draw.line([0, y, W, y], fill=CLR_LINE, width=1)
         draw.text((PAD_X, y + 4), label, fill=CLR_TEXT, font=f_lbl)
         try:
             bbox = draw.textbbox((0, 0), val, font=f_val)
@@ -270,10 +262,10 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         draw.text((COL_VAL_X - vw, y + 4), val, fill=CLR_TEXT, font=f_val)
         y += ROW_H
 
-    # Table border
+    # Table outer border
     draw.rectangle([0, 0, W - 1, TABLE_H - 1], outline=CLR_DARK_BLUE, width=1)
 
-    # 6. Bottom Buttons ("Fazer nova pesquisa" and "Imprimir")
+    # 6. Bottom Buttons
     y_btn = TABLE_H + 6
     btn1_txt = "Fazer nova pesquisa"
     btn2_txt = "Imprimir"
