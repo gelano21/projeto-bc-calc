@@ -136,100 +136,58 @@ def gerar_relatorio_word(resultados, df_original=None, modelo_bytes=None, titulo
 
     doc.add_paragraph().paragraph_format.space_after = Pt(14)
     
-    # Section 2: Table of Updated Values Below
+    # Section 2: Table of Updated Values Below (Clean 5/6-column layout matching user model)
     doc.add_heading("Planilha de Valores Atualizados", level=2)
     
-    if df_original is not None:
-        table_df = df_original.copy()
-        
-        # Format original currency columns cleanly (1.500,00)
-        for c in table_df.columns:
-            c_low = str(c).lower()
-            if any(k in c_low for k in ['valor', 'val', 'quantia', 'preco', 'preço', 'montante']):
-                table_df[c] = table_df[c].apply(fmt_num_br)
+    clean_rows = []
+    for idx, r in enumerate(resultados):
+        clean_rows.append({
+            "Descrição": r.get('descricao', f"Item #{idx+1}"),
+            "Data de Pagamento": r.get('data_inicial', ''),
+            "Data da Atualização": r.get('data_final', ''),
+            "Valor": fmt_num_br(r.get('valor_original_str', r.get('valor_original_num', '0,00'))),
+            "Valor Corrigido (R$)": fmt_num_br(r.get('valor_corrigido_str', r.get('valor_corrigido_num', '-'))),
+            "Fator BCB": str(r.get('fator_correcao', '-'))
+        })
+    table_df = pd.DataFrame(clean_rows)
 
-        if len(resultados) == len(table_df):
-            # Add Data da Atualização column if not present
-            if 'Data da Atualização' not in table_df.columns and 'Data Final (Correção)' not in table_df.columns:
-                dt_col_idx = 2 if len(table_df.columns) >= 2 else len(table_df.columns)
-                table_df.insert(dt_col_idx, 'Data da Atualização', [r.get('data_final', '-') for r in resultados])
+    table_res = doc.add_table(rows=1, cols=len(table_df.columns))
+    table_res.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table_res.autofit = False
+    set_table_borders(table_res, "003366")
+    
+    hdr_cells = table_res.rows[0].cells
+    for col_i, col_name in enumerate(table_df.columns):
+        hdr_cells[col_i].text = str(col_name)
+        set_cell_background(hdr_cells[col_i], "003366")
+        p = hdr_cells[col_i].paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        for run in p.runs:
+            run.font.name = 'Calibri'
+            run.font.bold = True
+            run.font.size = Pt(10)
+            run.font.color.rgb = RGBColor(255, 255, 255)
+            
+    for row_i, row in table_df.iterrows():
+        row_cells = table_res.add_row().cells
+        bg_color = "F4F6F9" if row_i % 2 == 1 else "FFFFFF"
+        for col_i, val in enumerate(row):
+            val_str = str(val) if not pd.isna(val) else ""
+            row_cells[col_i].text = val_str
+            set_cell_background(row_cells[col_i], bg_color)
+            p = row_cells[col_i].paragraphs[0]
+            
+            col_name = str(table_df.columns[col_i]).lower()
+            if any(k in col_name for k in ['valor', 'corrigido', 'fator', 'r$']):
+                p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            elif any(k in col_name for k in ['data', 'dt', 'vencimento', 'status']):
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            else:
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                 
-            table_df['Valor Corrigido (R$)'] = [fmt_num_br(r.get('valor_corrigido_str', '-')) for r in resultados]
-            table_df['Fator BCB'] = [r.get('fator_correcao', '-') for r in resultados]
-        
-        table_res = doc.add_table(rows=1, cols=len(table_df.columns))
-        table_res.alignment = WD_TABLE_ALIGNMENT.CENTER
-        table_res.autofit = False
-        set_table_borders(table_res, "003366")
-        
-        hdr_cells = table_res.rows[0].cells
-        for col_i, col_name in enumerate(table_df.columns):
-            hdr_cells[col_i].text = str(col_name)
-            set_cell_background(hdr_cells[col_i], "003366")
-            p = hdr_cells[col_i].paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in p.runs:
                 run.font.name = 'Calibri'
-                run.font.bold = True
-                run.font.size = Pt(10)
-                run.font.color.rgb = RGBColor(255, 255, 255)
-                
-        for row_i, row in table_df.iterrows():
-            row_cells = table_res.add_row().cells
-            bg_color = "F4F6F9" if row_i % 2 == 1 else "FFFFFF"
-            for col_i, val in enumerate(row):
-                val_str = str(val) if not pd.isna(val) else ""
-                row_cells[col_i].text = val_str
-                set_cell_background(row_cells[col_i], bg_color)
-                p = row_cells[col_i].paragraphs[0]
-                
-                col_name = str(table_df.columns[col_i]).lower()
-                if any(k in col_name for k in ['valor', 'corrigido', 'fator', 'r$']):
-                    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                elif any(k in col_name for k in ['data', 'dt', 'vencimento', 'status']):
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                else:
-                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                    
-                for run in p.runs:
-                    run.font.name = 'Calibri'
-                    run.font.size = Pt(9.5)
-    else:
-        table_res = doc.add_table(rows=1, cols=6)
-        table_res.alignment = WD_TABLE_ALIGNMENT.CENTER
-        headers = ["Item", "Descrição", "Data Inicial", "Data da Atualização", "Valor Original (R$)", "Valor Corrigido (R$)"]
-        hdr_cells = table_res.rows[0].cells
-        for i, h_text in enumerate(headers):
-            hdr_cells[i].text = h_text
-            set_cell_background(hdr_cells[i], "003366")
-            p = hdr_cells[i].paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            for run in p.runs:
-                run.font.name = 'Calibri'
-                run.font.bold = True
-                run.font.size = Pt(10)
-                run.font.color.rgb = RGBColor(255, 255, 255)
-                
-        for idx, r in enumerate(resultados, 1):
-            row_cells = table_res.add_row().cells
-            vals = [
-                str(idx),
-                r.get('descricao', f"Item #{idx}"),
-                r.get('data_inicial', ''),
-                r.get('data_final', ''),
-                fmt_num_br(r.get('valor_original_str', '0,00')),
-                fmt_num_br(r.get('valor_corrigido_str', '-'))
-            ]
-            for i, val in enumerate(vals):
-                row_cells[i].text = val
-                p = row_cells[i].paragraphs[0]
-                if i in [4, 5]:
-                    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                elif i in [0, 2, 3]:
-                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                for run in p.runs:
-                    run.font.name = 'Calibri'
-                    run.font.size = Pt(9.5)
+                run.font.size = Pt(9.5)
 
     out_buf = io.BytesIO()
     doc.save(out_buf)
