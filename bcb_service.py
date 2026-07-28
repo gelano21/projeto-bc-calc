@@ -266,10 +266,9 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         draw.text((COL_VAL_X - vw, y + (4 * SCALE)), val, fill=CLR_TEXT, font=f_val)
         y += ROW_H
 
-    # Table outer border (#003d79)
-    draw.rectangle([0, 0, W - 1, TABLE_H - 1], outline=CLR_DARK_BLUE, width=SCALE)
+    # NO TABLE OUTER BORDER! (border: 0 in BCB HTML/CSS specification)
 
-    # 6. Action buttons at bottom (2x HD scale with #7f9db9 borders)
+    # 6. Action buttons at bottom (Classic HTML button border)
     y_btn = TABLE_H + (7 * SCALE)
     btn1_txt = "Fazer nova pesquisa"
     btn2_txt = "Imprimir"
@@ -283,7 +282,7 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
 
     # Button 1: Fazer nova pesquisa
     b1_x = start_x
-    draw.rectangle([b1_x, y_btn, b1_x + btn1_w, y_btn + btn_h], fill=CLR_BTN_BG, outline=CLR_BTN_BORDER, width=1 * SCALE)
+    draw.rectangle([b1_x, y_btn, b1_x + btn1_w, y_btn + btn_h], fill=CLR_BTN_BG, outline=(0, 0, 0), width=1 * SCALE)
     try:
         t1_box = draw.textbbox((0, 0), btn1_txt, font=f_btn)
         t1_w = t1_box[2] - t1_box[0]
@@ -293,7 +292,7 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
 
     # Button 2: Imprimir
     b2_x = b1_x + btn1_w + (10 * SCALE)
-    draw.rectangle([b2_x, y_btn, b2_x + btn2_w, y_btn + btn_h], fill=CLR_BTN_BG, outline=CLR_BTN_BORDER, width=1 * SCALE)
+    draw.rectangle([b2_x, y_btn, b2_x + btn2_w, y_btn + btn_h], fill=CLR_BTN_BG, outline=(0, 0, 0), width=1 * SCALE)
     try:
         t2_box = draw.textbbox((0, 0), btn2_txt, font=f_btn)
         t2_w = t2_box[2] - t2_box[0]
