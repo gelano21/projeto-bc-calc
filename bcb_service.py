@@ -109,12 +109,13 @@ def is_regra_nova(data_inicial_str):
         return dt > cutoff
     except Exception:
         return True
-def get_bundled_font(size, bold=False):
-    """Load bundled Tahoma/Arial font directly from project fonts/ folder for 100% cross-platform parity."""
+
+def get_verdana_font(size, bold=False):
+    """Load bundled Verdana/Tahoma font directly from project fonts/ folder for 100% cross-platform parity."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    f_path = os.path.join(base_dir, "fonts", "Tahoma-Bold.ttf" if bold else "Tahoma-Regular.ttf")
+    f_path = os.path.join(base_dir, "fonts", "Verdana-Bold.ttf" if bold else "Verdana-Regular.ttf")
     if not os.path.exists(f_path):
-        f_path = os.path.join(base_dir, "fonts", "Arial-Bold.ttf" if bold else "Arial-Regular.ttf")
+        f_path = os.path.join(base_dir, "fonts", "Tahoma-Bold.ttf" if bold else "Tahoma-Regular.ttf")
     try:
         return ImageFont.truetype(f_path, size)
     except Exception:
@@ -122,8 +123,12 @@ def get_bundled_font(size, bold=False):
 
 def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido, fator, percentual, indicador_nome="Poupança"):
     """
-    100% Pixel-perfect visual match of BCB Calculadora do Cidadão table (Image 1),
-    using bundled Tahoma TrueType fonts so text & accents render flawlessly on Streamlit Cloud Linux.
+    100% Exact reproduction of BCB Calculadora do Cidadão result table using official BCB CSS rules:
+    - Main Header: fundoPadraoAEscuro2 (#003d79)
+    - Section Headers: fundoPadraoAEscuro3 (#4a73a2)
+    - All Data Rows: fundoPadraoAClaro3 (#F2F4F6) uniform background
+    - Font: Verdana (official BCB stylesheet font)
+    - Action Buttons: .botao (#e5e9ed)
     """
     W = 368
     HEADER1_H = 26
@@ -132,47 +137,46 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     PAD_X = 6
     COL_VAL_X = W - PAD_X - 1
 
-    CLR_DARK_BLUE = (0, 61, 121)       # #003d79 (main header)
-    CLR_MID_BLUE = (74, 115, 162)      # #4a73a2 (sub headers)
+    CLR_DARK_BLUE = (0, 61, 121)       # #003d79 (fundoPadraoAEscuro2)
+    CLR_MID_BLUE = (74, 115, 162)      # #4a73a2 (fundoPadraoAEscuro3)
     CLR_WHITE = (255, 255, 255)
-    CLR_ROW_BG = (248, 249, 250)       # #f8f9fa (uniform row background)
-    CLR_ROW_ALT_BG = (255, 255, 255)   # #ffffff
+    CLR_ROW_BG = (242, 244, 246)       # #F2F4F6 (fundoPadraoAClaro3 for ALL rows!)
     CLR_TEXT = (0, 0, 0)
-    CLR_BTN_BG = (239, 239, 239)
+    CLR_BTN_BG = (229, 233, 237)      # #e5e9ed (class .botao from CSS)
     CLR_BTN_BORDER = (0, 0, 0)
-    CLR_LINE = (230, 234, 238)
+    CLR_LINE = (255, 255, 255)
 
-    f_h1 = get_bundled_font(13, bold=True)
-    f_h2 = get_bundled_font(13, bold=True)
-    f_lbl = get_bundled_font(12, bold=False)
-    f_val = get_bundled_font(12, bold=False)
-    f_btn = get_bundled_font(11, bold=False)
+    f_h1 = get_verdana_font(13, bold=True)
+    f_h2 = get_verdana_font(13, bold=True)
+    f_lbl = get_verdana_font(12, bold=False)
+    f_val = get_verdana_font(12, bold=False)
+    f_btn = get_verdana_font(11, bold=False)
 
     indicador_map = {
-        "Poupança": "Poupança",
+        "Poupança": "Poupan\u00e7a",
         "SELIC": "SELIC",
         "CDI": "CDI",
         "TR": "TR",
         "IGP-M": "IGP-M (FGV)",
         "1": "IGP-M (FGV)",
         "2": "TR",
-        "3": "Poupança",
+        "3": "Poupan\u00e7a",
         "4": "SELIC",
         "5": "CDI",
         "6": "Taxa Legal",
     }
     ind_name = indicador_map.get(str(indicador_nome), str(indicador_nome))
 
-    t_h1 = f"Dados básicos da correção pela {ind_name}" if "Poupança" not in ind_name else "Dados básicos da correção pela Poupança"
+    t_h1 = f"Dados b\u00e1sicos da corre\u00e7\u00e3o pela {ind_name}"
     t_h2_inf = "Dados informados"
     t_h2_calc = "Dados calculados"
 
     t_dt_ini_lbl = "Data inicial"
     t_dt_fim_lbl = "Data final"
     t_val_nom_lbl = "Valor nominal"
-    t_regra_lbl = "Regra de correção"
+    t_regra_lbl = "Regra de corre\u00e7\u00e3o"
 
-    t_ind_lbl = "Índice de correção no período"
+    t_ind_lbl = "\u00cdndice de corre\u00e7\u00e3o no per\u00edodo"
     t_perc_lbl = "Valor percentual correspondente"
     t_vcorr_lbl = "Valor corrigido na data final"
 
@@ -195,7 +199,7 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     val_corr_str = fmt_r(valor_corrigido)
     fator_str = str(fator)
     perc_str = f"{percentual}" if '%' in str(percentual) else f"{percentual}%"
-    regra_str = "Nova" if "Poupança" in t_h1 or "3" in str(indicador_nome) else "Padrão"
+    regra_str = "Nova" if "Poupan" in t_h1 or "3" in str(indicador_nome) else "Padr\u00e3o"
 
     info_rows = [
         (t_dt_ini_lbl, str(data_inicial)),
@@ -219,17 +223,17 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
 
     y = 0
 
-    # 1. Main Header
+    # 1. Caption/Main Header: fundoPadraoAEscuro2 (#003d79)
     draw.rectangle([0, y, W, y + HEADER1_H], fill=CLR_DARK_BLUE)
     draw.text((PAD_X, y + 4), t_h1, fill=CLR_WHITE, font=f_h1)
     y += HEADER1_H + 2
 
-    # 2. Sub Header: Dados informados
+    # 2. Section Header: fundoPadraoAEscuro3 (#4a73a2)
     draw.rectangle([0, y, W, y + HEADER2_H], fill=CLR_MID_BLUE)
     draw.text((PAD_X, y + 4), t_h2_inf, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 3. Info rows (uniform #f8f9fa background for ALL rows)
+    # 3. Info rows (fundoPadraoAClaro3 #F2F4F6 for ALL rows)
     for label, val in info_rows:
         draw.rectangle([0, y, W, y + ROW_H - 1], fill=CLR_ROW_BG)
         draw.line([0, y, W, y], fill=CLR_LINE, width=1)
@@ -242,12 +246,12 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         draw.text((COL_VAL_X - vw, y + 4), val, fill=CLR_TEXT, font=f_val)
         y += ROW_H
 
-    # 4. Sub Header: Dados calculados
+    # 4. Section Header: fundoPadraoAEscuro3 (#4a73a2)
     draw.rectangle([0, y, W, y + HEADER2_H], fill=CLR_MID_BLUE)
     draw.text((PAD_X, y + 4), t_h2_calc, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 5. Calc rows (uniform #f8f9fa background for ALL rows)
+    # 5. Calc rows (fundoPadraoAClaro3 #F2F4F6 for ALL rows)
     for label, val in calc_rows:
         draw.rectangle([0, y, W, y + ROW_H - 1], fill=CLR_ROW_BG)
         draw.line([0, y, W, y], fill=CLR_LINE, width=1)
@@ -260,10 +264,10 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         draw.text((COL_VAL_X - vw, y + 4), val, fill=CLR_TEXT, font=f_val)
         y += ROW_H
 
-    # Table outer border
+    # Outer table border (#003d79)
     draw.rectangle([0, 0, W - 1, TABLE_H - 1], outline=CLR_DARK_BLUE, width=1)
 
-    # 6. Bottom Buttons
+    # 6. Action buttons
     y_btn = TABLE_H + 6
     btn1_txt = "Fazer nova pesquisa"
     btn2_txt = "Imprimir"
