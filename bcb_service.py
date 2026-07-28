@@ -120,15 +120,14 @@ def get_verdana_font(size, bold=False):
         return ImageFont.truetype(f_path, size)
     except Exception:
         return ImageFont.load_default()
-
 def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido, fator, percentual, indicador_nome="Poupança"):
     """
-    100% Exact reproduction of BCB Calculadora do Cidadão result table using official BCB CSS rules:
+    100% Exact reproduction of BCB Calculadora do Cidadão result table:
     - Main Header: fundoPadraoAEscuro2 (#003d79)
     - Section Headers: fundoPadraoAEscuro3 (#4a73a2)
-    - All Data Rows: fundoPadraoAClaro3 (#F2F4F6) uniform background
+    - All Data Rows: fundoPadraoAClaro3 (#F2F4F6) solid uniform background (NO white separator lines!)
     - Font: Verdana (official BCB stylesheet font)
-    - Action Buttons: .botao (#e5e9ed)
+    - Action Buttons: Properly proportioned & centered ('Fazer nova pesquisa' / 'Imprimir')
     """
     W = 368
     HEADER1_H = 26
@@ -144,7 +143,6 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     CLR_TEXT = (0, 0, 0)
     CLR_BTN_BG = (229, 233, 237)      # #e5e9ed (class .botao from CSS)
     CLR_BTN_BORDER = (0, 0, 0)
-    CLR_LINE = (255, 255, 255)
 
     f_h1 = get_verdana_font(13, bold=True)
     f_h2 = get_verdana_font(13, bold=True)
@@ -215,7 +213,7 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     ]
 
     TABLE_H = HEADER1_H + 2 + HEADER2_H + (ROW_H * len(info_rows)) + HEADER2_H + (ROW_H * len(calc_rows))
-    BTN_BAR_H = 34
+    BTN_BAR_H = 36
     TOTAL_H = TABLE_H + BTN_BAR_H
 
     img = Image.new('RGB', (W, TOTAL_H), color=CLR_WHITE)
@@ -223,20 +221,19 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
 
     y = 0
 
-    # 1. Caption/Main Header: fundoPadraoAEscuro2 (#003d79)
+    # 1. Caption/Main Header (#003d79)
     draw.rectangle([0, y, W, y + HEADER1_H], fill=CLR_DARK_BLUE)
     draw.text((PAD_X, y + 4), t_h1, fill=CLR_WHITE, font=f_h1)
     y += HEADER1_H + 2
 
-    # 2. Section Header: fundoPadraoAEscuro3 (#4a73a2)
+    # 2. Section Header: Dados informados (#4a73a2)
     draw.rectangle([0, y, W, y + HEADER2_H], fill=CLR_MID_BLUE)
     draw.text((PAD_X, y + 4), t_h2_inf, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 3. Info rows (fundoPadraoAClaro3 #F2F4F6 for ALL rows)
+    # 3. Info rows (NO WHITE SEPARATOR LINES!)
     for label, val in info_rows:
         draw.rectangle([0, y, W, y + ROW_H - 1], fill=CLR_ROW_BG)
-        draw.line([0, y, W, y], fill=CLR_LINE, width=1)
         draw.text((PAD_X, y + 4), label, fill=CLR_TEXT, font=f_lbl)
         try:
             bbox = draw.textbbox((0, 0), val, font=f_val)
@@ -246,15 +243,14 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
         draw.text((COL_VAL_X - vw, y + 4), val, fill=CLR_TEXT, font=f_val)
         y += ROW_H
 
-    # 4. Section Header: fundoPadraoAEscuro3 (#4a73a2)
+    # 4. Section Header: Dados calculados (#4a73a2)
     draw.rectangle([0, y, W, y + HEADER2_H], fill=CLR_MID_BLUE)
     draw.text((PAD_X, y + 4), t_h2_calc, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 5. Calc rows (fundoPadraoAClaro3 #F2F4F6 for ALL rows)
+    # 5. Calc rows (NO WHITE SEPARATOR LINES!)
     for label, val in calc_rows:
         draw.rectangle([0, y, W, y + ROW_H - 1], fill=CLR_ROW_BG)
-        draw.line([0, y, W, y], fill=CLR_LINE, width=1)
         draw.text((PAD_X, y + 4), label, fill=CLR_TEXT, font=f_lbl)
         try:
             bbox = draw.textbbox((0, 0), val, font=f_val)
@@ -267,22 +263,39 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     # Outer table border (#003d79)
     draw.rectangle([0, 0, W - 1, TABLE_H - 1], outline=CLR_DARK_BLUE, width=1)
 
-    # 6. Action buttons
-    y_btn = TABLE_H + 6
+    # 6. Action buttons at bottom (Centered text & proper widths)
+    y_btn = TABLE_H + 7
     btn1_txt = "Fazer nova pesquisa"
     btn2_txt = "Imprimir"
 
-    btn1_w = 110
-    btn1_x = (W // 2) - btn1_w - 6
-    draw.rectangle([btn1_x, y_btn, btn1_x + btn1_w, y_btn + 20], fill=CLR_BTN_BG, outline=CLR_BTN_BORDER, width=1)
-    draw.text((btn1_x + 6, y_btn + 3), btn1_txt, fill=CLR_TEXT, font=f_btn)
+    btn1_w = 135
+    btn2_w = 68
+    btn_h = 22
 
-    btn2_w = 60
-    btn2_x = (W // 2) + 6
-    draw.rectangle([btn2_x, y_btn, btn2_x + btn2_w, y_btn + 20], fill=CLR_BTN_BG, outline=CLR_BTN_BORDER, width=1)
-    draw.text((btn2_x + 9, y_btn + 3), btn2_txt, fill=CLR_TEXT, font=f_btn)
+    total_btn_w = btn1_w + 10 + btn2_w
+    start_x = (W - total_btn_w) // 2
 
-    buf = BytesIO()
+    # Button 1: Fazer nova pesquisa
+    b1_x = start_x
+    draw.rectangle([b1_x, y_btn, b1_x + btn1_w, y_btn + btn_h], fill=CLR_BTN_BG, outline=CLR_BTN_BORDER, width=1)
+    try:
+        t1_box = draw.textbbox((0, 0), btn1_txt, font=f_btn)
+        t1_w = t1_box[2] - t1_box[0]
+    except AttributeError:
+        t1_w = len(btn1_txt) * 6
+    draw.text((b1_x + (btn1_w - t1_w) // 2, y_btn + 3), btn1_txt, fill=CLR_TEXT, font=f_btn)
+
+    # Button 2: Imprimir
+    b2_x = b1_x + btn1_w + 10
+    draw.rectangle([b2_x, y_btn, b2_x + btn2_w, y_btn + btn_h], fill=CLR_BTN_BG, outline=CLR_BTN_BORDER, width=1)
+    try:
+        t2_box = draw.textbbox((0, 0), btn2_txt, font=f_btn)
+        t2_w = t2_box[2] - t2_box[0]
+    except AttributeError:
+        t2_w = len(btn2_txt) * 6
+    draw.text((b2_x + (btn2_w - t2_w) // 2, y_btn + 3), btn2_txt, fill=CLR_TEXT, font=f_btn)
+
+    buf = io.BytesIO()
     img.save(buf, format='PNG')
     return buf.getvalue()
 
