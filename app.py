@@ -199,7 +199,7 @@ with st.sidebar:
     st.markdown("### 🛠️ Modo de Operação")
     modo = st.radio(
         "Selecione a funcionalidade:",
-        ["🏦 Correção Monetária (Poupança/SELIC/CDI)", "📈 Atualizar IGP-M (Ciclos de 12 Meses)"],
+        ["🏦 Correção Monetária", "📈 Atualizar IGP-M (Ciclos de 12 Meses)"],
         index=0,
         help="Escolha entre a atualização individual por data ou o cálculo cíclico de IGP-M a cada 12 parcelas."
     )
@@ -258,7 +258,7 @@ if modo.startswith("🏦"):
     st.markdown("""
     <div class="main-header">
         <h1>🏦 Atualizador Monetário BCB (Calculadora do Cidadão)</h1>
-        <p>Atualize tabelas de pagamentos pela Caderneta de Poupança, SELIC, CDI ou TR. Gera automaticamente comprovantes com o layout oficial do Banco Central e relatório completo em Word e Excel.</p>
+        <p>Atualize tabelas de pagamentos pela Calculadora do Cidadão do Banco Central do Brasil. Gera automaticamente os comprovantes do Banco Central e relatório completo em Word e Excel.</p>
     </div>
     """, unsafe_allow_html=True)
 
