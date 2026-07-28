@@ -186,6 +186,12 @@ def get_column_samples(df, col_name, n=3):
     return " • ".join(samples)
 
 
+def get_today_brt():
+    """Returns current date in Brasilia timezone (UTC-3), preventing UTC cloud servers from defaulting to tomorrow's date."""
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    brt_tz = datetime.timezone(datetime.timedelta(hours=-3))
+    return now_utc.astimezone(brt_tz).date()
+
 # ==========================================
 # SIDEBAR
 # ==========================================
@@ -202,7 +208,7 @@ with st.sidebar:
 
     if modo.startswith("🏦"):
         with st.expander("⚙️ Configurações do Cálculo", expanded=True):
-            data_final_def = datetime.date.today()
+            data_final_def = get_today_brt()
             data_final_input = st.date_input(
                 "Data Final da Correção",
                 value=data_final_def,

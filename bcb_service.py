@@ -229,10 +229,9 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     draw.text((PAD_X, y + 4), t_h2_inf, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 3. Info rows
-    for i, (label, val) in enumerate(info_rows):
-        bg = CLR_ROW_BG if i % 2 == 0 else CLR_ROW_ALT_BG
-        draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+    # 3. Info rows (uniform #f8f9fa background for ALL rows)
+    for label, val in info_rows:
+        draw.rectangle([0, y, W, y + ROW_H - 1], fill=CLR_ROW_BG)
         draw.line([0, y, W, y], fill=CLR_LINE, width=1)
         draw.text((PAD_X, y + 4), label, fill=CLR_TEXT, font=f_lbl)
         try:
@@ -248,10 +247,9 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     draw.text((PAD_X, y + 4), t_h2_calc, fill=CLR_WHITE, font=f_h2)
     y += HEADER2_H
 
-    # 5. Calc rows
-    for i, (label, val) in enumerate(calc_rows):
-        bg = CLR_ROW_BG if i % 2 == 0 else CLR_ROW_ALT_BG
-        draw.rectangle([0, y, W, y + ROW_H - 1], fill=bg)
+    # 5. Calc rows (uniform #f8f9fa background for ALL rows)
+    for label, val in calc_rows:
+        draw.rectangle([0, y, W, y + ROW_H - 1], fill=CLR_ROW_BG)
         draw.line([0, y, W, y], fill=CLR_LINE, width=1)
         draw.text((PAD_X, y + 4), label, fill=CLR_TEXT, font=f_lbl)
         try:
