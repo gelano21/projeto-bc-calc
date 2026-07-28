@@ -661,8 +661,8 @@ elif modo.startswith("📈"):
 # Footer
 st.markdown("""
 <div class="app-footer">
-    🏦 <b>Atualizador Monetário BCB</b> | Integrado à Calculadora do Cidadão do Banco Central do Brasil<br>
-    Formatos exportados: Microsoft Word (.docx) & Microsoft Excel (.xlsx)<br>
-    <span style="font-size:11px; color:#64748b;">Versão 1.2 (Fontes Tahoma Embarcadas)</span>
+    <hr style="border: 0; border-top: 1px solid #cbd5e1; margin-bottom: 16px;">
+    <b>v1.0 | Fonte: Banco Central do Brasil</b><br>
+    Calculadora do Cidadão | Desenvolvido por Ederson Gelano
 </div>
 """, unsafe_allow_html=True)

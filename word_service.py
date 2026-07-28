@@ -34,6 +34,30 @@ def set_table_borders(table, color_hex="D0D0D0"):
     ''')
     tblPr.append(borders)
 
+def get_brt_now_str():
+    """Returns formatted datetime string in Brasilia timezone (UTC-3)."""
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    brt_tz = datetime.timezone(datetime.timedelta(hours=-3))
+    now_brt = now_utc.astimezone(brt_tz)
+    return now_brt.strftime('%d/%m/%Y às %H:%M')
+
+def fmt_num_br(val):
+    """Formats numeric value or string to Brazilian currency format (1.500,00)."""
+    if val is None or pd.isna(val) or str(val).strip() in ['', '-']:
+        return '-'
+    if isinstance(val, (int, float)):
+        return f"{val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+    s = str(val).strip().replace('R$', '').replace('(REAL)', '').replace(' ', '')
+    try:
+        if ',' in s and '.' in s:
+            s = s.replace('.', '').replace(',', '.')
+        elif ',' in s:
+            s = s.replace(',', '.')
+        num = float(s)
+        return f"{num:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+    except Exception:
+        return str(val)
+
 def gerar_relatorio_word(resultados, df_original=None, modelo_bytes=None, titulo="Relatório de Atualização Monetária - BCB", **kwargs):
     """
     Generates Word document matching user's requested layout:
@@ -61,10 +85,10 @@ def gerar_relatorio_word(resultados, df_original=None, modelo_bytes=None, titulo
     r_title.font.bold = True
     r_title.font.color.rgb = RGBColor(0, 51, 102)
     
-    # Date Subtitle
+    # Date Subtitle (Brasilia local time UTC-3)
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_sub = p_sub.add_run(f"Data de Emissão: {datetime.datetime.now().strftime('%d/%m/%Y às %H:%M')} | Fonte: Banco Central do Brasil (BCB)")
+    r_sub = p_sub.add_run(f"Data de Emissão: {get_brt_now_str()} | Fonte: Banco Central do Brasil (BCB)")
     r_sub.font.name = 'Calibri'
     r_sub.font.size = Pt(9.5)
     r_sub.font.italic = True
@@ -118,10 +142,19 @@ def gerar_relatorio_word(resultados, df_original=None, modelo_bytes=None, titulo
     if df_original is not None:
         table_df = df_original.copy()
         
-        # Only add result columns if one result per row (Correção Monetária mode)
-        # For IGP-M mode, the df_original already has the corrected column added upstream
+        # Format original currency columns cleanly (1.500,00)
+        for c in table_df.columns:
+            c_low = str(c).lower()
+            if any(k in c_low for k in ['valor', 'val', 'quantia', 'preco', 'preço', 'montante']):
+                table_df[c] = table_df[c].apply(fmt_num_br)
+
         if len(resultados) == len(table_df):
-            table_df['Valor Corrigido (R$)'] = [r.get('valor_corrigido_str', '-') for r in resultados]
+            # Add Data da Atualização column if not present
+            if 'Data da Atualização' not in table_df.columns and 'Data Final (Correção)' not in table_df.columns:
+                dt_col_idx = 2 if len(table_df.columns) >= 2 else len(table_df.columns)
+                table_df.insert(dt_col_idx, 'Data da Atualização', [r.get('data_final', '-') for r in resultados])
+                
+            table_df['Valor Corrigido (R$)'] = [fmt_num_br(r.get('valor_corrigido_str', '-')) for r in resultados]
             table_df['Fator BCB'] = [r.get('fator_correcao', '-') for r in resultados]
         
         table_res = doc.add_table(rows=1, cols=len(table_df.columns))
@@ -164,7 +197,7 @@ def gerar_relatorio_word(resultados, df_original=None, modelo_bytes=None, titulo
     else:
         table_res = doc.add_table(rows=1, cols=6)
         table_res.alignment = WD_TABLE_ALIGNMENT.CENTER
-        headers = ["Item", "Descrição", "Data Inicial", "Data Final", "Valor Orig. (R$)", "Valor Corrig. (R$)"]
+        headers = ["Item", "Descrição", "Data Inicial", "Data da Atualização", "Valor Original (R$)", "Valor Corrigido (R$)"]
         hdr_cells = table_res.rows[0].cells
         for i, h_text in enumerate(headers):
             hdr_cells[i].text = h_text
@@ -184,8 +217,8 @@ def gerar_relatorio_word(resultados, df_original=None, modelo_bytes=None, titulo
                 r.get('descricao', f"Item #{idx}"),
                 r.get('data_inicial', ''),
                 r.get('data_final', ''),
-                r.get('valor_original_str', '0,00'),
-                r.get('valor_corrigido_str', '-')
+                fmt_num_br(r.get('valor_original_str', '0,00')),
+                fmt_num_br(r.get('valor_corrigido_str', '-'))
             ]
             for i, val in enumerate(vals):
                 row_cells[i].text = val
