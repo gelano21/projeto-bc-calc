@@ -121,6 +121,8 @@ def get_verdana_font(size, bold=False):
         return ImageFont.truetype(f_path, size)
     except Exception:
         return ImageFont.load_default()
+
+
 def fmt_currency_bcb(val):
     """
     Formats any currency value into exact BCB standard string: R$ X.XXX,XX (REAL)
