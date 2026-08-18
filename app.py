@@ -457,7 +457,7 @@ if modo.startswith("🏦"):
                     with grid_cols[idx % 3]:
                         st.caption(f"Item #{idx+1}: {r.get('descricao')}")
                         if r.get("screenshot_bytes"):
-                            st.image(r["screenshot_bytes"], use_column_width=True)
+                            st.image(r["screenshot_bytes"], use_container_width=True)
 
         except Exception as e:
             st.error(f"Erro ao ler ou processar o arquivo: {str(e)}")
@@ -693,7 +693,7 @@ elif modo.startswith("📈"):
                     st.caption(f"📅 Período BCB: {dt_ini} → {dt_fim} | Percentual: {perc}")
 
                     if rc.get("screenshot_bytes"):
-                        st.image(rc["screenshot_bytes"], use_column_width=True, caption=f"Comprovante BCB — IGP-M Ciclo {ciclo_n}")
+                        st.image(rc["screenshot_bytes"], use_container_width=True, caption=f"Comprovante BCB — IGP-M Ciclo {ciclo_n}")
 
     else:
         st.markdown("""
