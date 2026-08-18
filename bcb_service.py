@@ -116,6 +116,12 @@ def get_verdana_font(size, bold=False):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     f_path = os.path.join(base_dir, "fonts", "Verdana-Bold.ttf" if bold else "Verdana-Regular.ttf")
     if not os.path.exists(f_path):
+        try:
+            import embedded_fonts
+            embedded_fonts.ensure_fonts_extracted()
+        except Exception:
+            pass
+    if not os.path.exists(f_path):
         f_path = os.path.join(base_dir, "fonts", "Tahoma-Bold.ttf" if bold else "Tahoma-Regular.ttf")
     try:
         return ImageFont.truetype(f_path, size)

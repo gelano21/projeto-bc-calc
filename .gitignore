@@ -21,3 +21,7 @@ capture_ref.py
 # OS files
 .DS_Store
 Thumbs.db
+
+# Fonts (embedded via embedded_fonts.py)
+fonts/
+
