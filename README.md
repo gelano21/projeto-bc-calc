@@ -1,3 +1,14 @@
+---
+title: Atualizador Monetario BCB
+emoji: 🏦
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: 1.35.0
+app_file: app.py
+pinned: false
+---
+
 # 🏦 Atualizador Monetário BCB (Word & Excel)
 
 Sistema web para atualização monetária de tabelas de pagamento utilizando a **Calculadora do Cidadão do Banco Central do Brasil (BCB)**.
