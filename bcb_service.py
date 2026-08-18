@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import datetime
 import urllib.request
 import urllib.parse
@@ -8,6 +9,24 @@ import io
 from bs4 import BeautifulSoup
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont, ImageChops
+
+def safe_parse_float(val):
+    """Safely converts string/number/currency to Python float."""
+    if val is None or pd.isna(val):
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip().replace('R$', '').replace('(REAL)', '').replace(' ', '')
+    if not s or s == '-':
+        return 0.0
+    try:
+        if ',' in s and '.' in s:
+            s = s.replace('.', '').replace(',', '.')
+        elif ',' in s:
+            s = s.replace(',', '.')
+        return float(s)
+    except Exception:
+        return 0.0
 
 def autocrop_image(img_bytes, border=6):
     """
@@ -39,12 +58,12 @@ def autocrop_image(img_bytes, border=6):
     return img_bytes
 
 def parse_date(date_val):
-    """Safely converts various date types into DD/MM/AAAA string."""
+    """Safely converts various date formats (DD/MM/AAAA, DD.MM.AAAA, DD-MM-AAAA, ISO, Excel dates) into DD/MM/AAAA string."""
     if date_val is None or pd.isna(date_val):
         return ""
         
     str_val = str(date_val).strip()
-    if str_val in ('', 'NaT', 'nan', 'NaN', 'None'):
+    if str_val in ('', 'NaT', 'nan', 'NaN', 'None', '-'):
         return ""
         
     if isinstance(date_val, (datetime.date, datetime.datetime)):
@@ -53,14 +72,16 @@ def parse_date(date_val):
         except (ValueError, AttributeError):
             pass
             
-    match_iso = re.search(r'^(\d{4})-(\d{2})-(\d{2})', str_val)
-    if match_iso:
-        y, m, d = match_iso.groups()
-        return f"{int(d):02d}/{int(m):02d}/{y}"
-        
-    match_br = re.search(r'^(\d{1,2})/(\d{1,2})/(\d{4})', str_val)
+    # DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY
+    match_br = re.search(r'^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})', str_val)
     if match_br:
         d, m, y = match_br.groups()
+        return f"{int(d):02d}/{int(m):02d}/{y}"
+
+    # YYYY-MM-DD, YYYY.MM.DD, YYYY/MM/DD
+    match_iso = re.search(r'^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})', str_val)
+    if match_iso:
+        y, m, d = match_iso.groups()
         return f"{int(d):02d}/{int(m):02d}/{y}"
         
     try:
@@ -313,7 +334,7 @@ def create_fallback_image(data_inicial, data_final, valor_orig, valor_corrigido,
     return buf.getvalue()
 
 def consultar_bcb_http(data_inicial, data_final, valor_input, aba="3"):
-    """Consults BCB via HTTP POST."""
+    """Consults BCB via HTTP POST with automatic retry resilience."""
     url_map = {
         "1": "corrigirPelaIgpM.do?method=corrigirPelaIgpM",
         "2": "corrigirPelaTR.do?method=corrigirPelaTR",
@@ -348,53 +369,60 @@ def consultar_bcb_http(data_inicial, data_final, valor_input, aba="3"):
         'Content-Type': 'application/x-www-form-urlencoded'
     })
     
-    try:
-        resp = urllib.request.urlopen(req, timeout=15).read()
-        soup = BeautifulSoup(resp, 'html.parser')
-        text = soup.get_text()
-        
-        if "alerta" in text.lower() and ("inválida" in text.lower() or "erro" in text.lower()):
-            err = soup.find('div', class_='alerta') or soup.find('span', class_='erro')
-            err_msg = err.get_text(strip=True) if err else "Data ou valor inválido no BCB."
-            return {"status": "Erro", "mensagem_erro": err_msg}
+    # Try up to 2 times in case of transient network hiccups
+    last_err = None
+    for attempt in range(2):
+        try:
+            resp = urllib.request.urlopen(req, timeout=15).read()
+            soup = BeautifulSoup(resp, 'html.parser')
+            text = soup.get_text()
             
-        val_corrigido = None
-        fator = "1,00"
-        percentual = "0,00%"
-        
-        tables = soup.find_all('table')
-        for t in tables:
-            t_text = t.get_text()
-            if "Valor corrigido na data" in t_text or "Resultado da" in t_text:
-                for tr in t.find_all('tr'):
-                    row_txt = tr.get_text(separator=" ", strip=True)
-                    if "Valor corrigido na data" in row_txt:
-                        m = re.search(r'R\$\s*([\d\.,]+)', row_txt)
-                        if m:
-                            val_corrigido = m.group(1)
-                    elif "Índice de" in row_txt or "fator" in row_txt.lower():
-                        m = re.search(r'([\d,]{3,})', row_txt)
-                        if m:
-                            fator = m.group(1)
-                    elif "percentual" in row_txt.lower():
-                        m = re.search(r'([\d,]+\s*%)', row_txt)
-                        if m:
-                            percentual = m.group(1)
-                            
-        val_corrigido_num = parse_currency_output(val_corrigido) if val_corrigido else None
-        
-        return {
-            "status": "Sucesso",
-            "data_inicial": dt_init,
-            "data_final": dt_end,
-            "valor_original_str": val_str,
-            "valor_corrigido_str": val_corrigido or val_str,
-            "valor_corrigido_num": val_corrigido_num,
-            "fator_correcao": fator,
-            "percentual": percentual
-        }
-    except Exception as e:
-        return {"status": "Erro", "mensagem_erro": str(e)}
+            if "alerta" in text.lower() and ("inválida" in text.lower() or "erro" in text.lower()):
+                err = soup.find('div', class_='alerta') or soup.find('span', class_='erro')
+                err_msg = err.get_text(strip=True) if err else "Data ou valor inválido no BCB."
+                return {"status": "Erro", "mensagem_erro": err_msg}
+                
+            val_corrigido = None
+            fator = "1,00"
+            percentual = "0,00%"
+            
+            tables = soup.find_all('table')
+            for t in tables:
+                t_text = t.get_text()
+                if "Valor corrigido na data" in t_text or "Resultado da" in t_text:
+                    for tr in t.find_all('tr'):
+                        row_txt = tr.get_text(separator=" ", strip=True)
+                        if "Valor corrigido na data" in row_txt:
+                            m = re.search(r'R\$\s*([\d\.,]+)', row_txt)
+                            if m:
+                                val_corrigido = m.group(1)
+                        elif "Índice de" in row_txt or "fator" in row_txt.lower():
+                            m = re.search(r'([\d]+(?:,[\d]+)?)', row_txt)
+                            if m:
+                                fator = m.group(1)
+                        elif "percentual" in row_txt.lower():
+                            m = re.search(r'([\d,]+\s*%)', row_txt)
+                            if m:
+                                percentual = m.group(1)
+                                
+            val_corrigido_num = parse_currency_output(val_corrigido) if val_corrigido else None
+            
+            return {
+                "status": "Sucesso",
+                "data_inicial": dt_init,
+                "data_final": dt_end,
+                "valor_original_str": val_str,
+                "valor_corrigido_str": val_corrigido or val_str,
+                "valor_corrigido_num": val_corrigido_num,
+                "fator_correcao": fator,
+                "percentual": percentual
+            }
+        except Exception as e:
+            last_err = e
+            if attempt == 0:
+                time.sleep(1.0)
+                
+    return {"status": "Erro", "mensagem_erro": str(last_err)}
 
 def consultar_bcb_playwright(data_inicial, data_final, valor_input, aba="3"):
     """Consults BCB via Playwright & captures tightly cropped screenshot of the result box."""

@@ -6,9 +6,16 @@ from openpyxl.utils import get_column_letter
 
 def carregar_excel(excel_bytes):
     """
-    Reads an Excel file and returns dataframe and suggested column mappings.
+    Reads an Excel file and returns sanitized dataframe and suggested column mappings.
     """
     df = pd.read_excel(io.BytesIO(excel_bytes))
+    
+    # Strip whitespace from column names
+    df.columns = [str(c).strip() for c in df.columns]
+    
+    # Drop rows that are completely blank
+    df = df.dropna(how='all').reset_index(drop=True)
+    
     cols = list(df.columns)
     
     col_data = None
