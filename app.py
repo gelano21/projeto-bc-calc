@@ -288,6 +288,11 @@ if modo.startswith("🏦"):
             st.session_state["df_correcao"] = df_raw
             st.session_state["excel_bytes_correcao"] = excel_bytes
 
+            # Reset previous results if a different file is uploaded
+            if st.session_state.get("last_uploaded_excel_name") != uploaded_excel.name:
+                st.session_state["last_uploaded_excel_name"] = uploaded_excel.name
+                st.session_state.pop("resultado_correcao", None)
+
             st.markdown("---")
             st.subheader("📌 Mapeamento Inteligente de Colunas")
             st.caption("Verifique se as colunas identificadas correspondem aos dados da sua planilha. Veja a amostra abaixo de cada seletor.")
@@ -371,9 +376,6 @@ if modo.startswith("🏦"):
                     resultados.append(res)
                     progress_bar.progress((i + 1) / tot_linhas)
 
-                status_text.success("🎉 Atualização concluída com sucesso!")
-                st.balloons()
-
                 # Calculate KPI Totals
                 total_orig = sum(r.get("valor_original_num", 0.0) for r in resultados)
                 total_corr = sum(
@@ -385,47 +387,73 @@ if modo.startswith("🏦"):
                 diferenca = total_corr - total_orig
                 pct_aumento = ((total_corr / total_orig) - 1) * 100 if total_orig > 0 else 0.0
 
-                # KPI Metrics Cards
-                st.markdown("### 📊 Resumo Executivo dos Resultados")
-                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-                kpi1.metric("Parcelas Processadas", f"{tot_linhas}")
-                kpi2.metric("Valor Original Total", format_currency_br(total_orig))
-                kpi3.metric("Valor Corrigido Total", format_currency_br(total_corr), delta=f"+{pct_aumento:.2f}%")
-                kpi4.metric("Diferença da Correção", format_currency_br(diferenca), delta=f"R$ {diferenca:,.2f}")
-
-                st.markdown("---")
-
                 # Generate files
-                modelo_bytes = uploaded_word.read() if uploaded_word else None
+                modelo_bytes = uploaded_word.getvalue() if uploaded_word else None
                 word_bytes = word_service.gerar_relatorio_word(resultados, df_original=df_raw, modelo_bytes=modelo_bytes)
                 excel_out_bytes = excel_service.gerar_excel_atualizado(
                     df_raw, resultados, selected_col_data, selected_col_valor,
                     col_desc=selected_col_desc if selected_col_desc != "(Nenhum / Usar número da linha)" else None
                 )
 
+                st.session_state["resultado_correcao"] = {
+                    "resultados": resultados,
+                    "tot_linhas": tot_linhas,
+                    "total_orig": total_orig,
+                    "total_corr": total_corr,
+                    "diferenca": diferenca,
+                    "pct_aumento": pct_aumento,
+                    "word_bytes": word_bytes,
+                    "excel_out_bytes": excel_out_bytes,
+                    "timestamp": datetime.datetime.now().strftime('%Y%m%d_%H%M')
+                }
+                st.session_state["show_balloons_correcao"] = True
+                st.rerun()
+
+            # Render results persistently from session state
+            if "resultado_correcao" in st.session_state and st.session_state["resultado_correcao"] is not None:
+                res_data = st.session_state["resultado_correcao"]
+
+                if st.session_state.get("show_balloons_correcao"):
+                    st.success("🎉 Atualização concluída com sucesso!")
+                    st.balloons()
+                    st.session_state["show_balloons_correcao"] = False
+
+                # KPI Metrics Cards
+                st.markdown("### 📊 Resumo Executivo dos Resultados")
+                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+                kpi1.metric("Parcelas Processadas", f"{res_data['tot_linhas']}")
+                kpi2.metric("Valor Original Total", format_currency_br(res_data['total_orig']))
+                kpi3.metric("Valor Corrigido Total", format_currency_br(res_data['total_corr']), delta=f"+{res_data['pct_aumento']:.2f}%")
+                kpi4.metric("Diferença da Correção", format_currency_br(res_data['diferenca']), delta=f"R$ {res_data['diferenca']:,.2f}")
+
+                st.markdown("---")
+
+                # Download Buttons
                 st.markdown("### 📥 Baixar Relatórios Gerados")
                 col_d1, col_d2 = st.columns(2)
                 with col_d1:
                     st.download_button(
                         "📄 Baixar Relatório Word com Comprovantes (.docx)",
-                        data=word_bytes,
-                        file_name=f"Relatorio_BCB_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.docx",
+                        data=res_data['word_bytes'],
+                        file_name=f"Relatorio_BCB_{res_data['timestamp']}.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        key="dl_word_corr",
                         use_container_width=True
                     )
                 with col_d2:
                     st.download_button(
                         "📊 Baixar Planilha Excel Atualizada (.xlsx)",
-                        data=excel_out_bytes,
-                        file_name=f"Pagamentos_BCB_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                        data=res_data['excel_out_bytes'],
+                        file_name=f"Pagamentos_BCB_{res_data['timestamp']}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="dl_excel_corr",
                         use_container_width=True
                     )
 
                 st.markdown("---")
                 st.subheader("🖼️ Comprovantes Oficiais do Banco Central")
                 grid_cols = st.columns(3)
-                for idx, r in enumerate(resultados):
+                for idx, r in enumerate(res_data['resultados']):
                     with grid_cols[idx % 3]:
                         st.caption(f"Item #{idx+1}: {r.get('descricao')}")
                         if r.get("screenshot_bytes"):
@@ -561,10 +589,6 @@ elif modo.startswith("📈"):
                 use_playwright=False
             )
 
-            progress_bar.progress(100)
-            progress_text.success(f"🎉 {len(resultados_ciclo)} ciclo(s) de IGP-M processados com sucesso!")
-            st.balloons()
-
             # Prepare word results
             word_resultados = []
             for rc in resultados_ciclo:
@@ -583,15 +607,6 @@ elif modo.startswith("📈"):
             soma_corrigida = sum(valores_corrigidos)
             dif_igpm = soma_corrigida - soma_original
 
-            st.markdown("### 📊 Resumo do Reajuste por IGP-M")
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total de Parcelas", f"{n_parcelas}")
-            k2.metric("Valor Inicial (Ciclo 1)", format_currency_br(val_base_1))
-            k3.metric("Valor Final (Último Ciclo)", format_currency_br(val_final_ult))
-            k4.metric("Aumento Acumulado", format_currency_br(dif_igpm), delta=f"R$ {dif_igpm:,.2f}")
-
-            st.markdown("---")
-
             # Word generation
             word_bytes = word_service.gerar_relatorio_word(
                 word_resultados,
@@ -605,29 +620,62 @@ elif modo.startswith("📈"):
                 df_resultado.to_excel(writer, index=False, sheet_name='Parcelas com IGP-M')
             excel_out = excel_buf.getvalue()
 
+            st.session_state["resultado_igpm"] = {
+                "resultados_ciclo": resultados_ciclo,
+                "n_parcelas": n_parcelas,
+                "val_base_1": val_base_1,
+                "val_final_ult": val_final_ult,
+                "dif_igpm": dif_igpm,
+                "word_bytes": word_bytes,
+                "excel_out": excel_out,
+                "timestamp": datetime.datetime.now().strftime('%Y%m%d_%H%M')
+            }
+            st.session_state["show_balloons_igpm"] = True
+            st.rerun()
+
+        # Render IGP-M results persistently from session state
+        if "resultado_igpm" in st.session_state and st.session_state["resultado_igpm"] is not None:
+            res_igpm = st.session_state["resultado_igpm"]
+
+            if st.session_state.get("show_balloons_igpm"):
+                st.success(f"🎉 {len(res_igpm['resultados_ciclo'])} ciclo(s) de IGP-M processados com sucesso!")
+                st.balloons()
+                st.session_state["show_balloons_igpm"] = False
+
+            st.markdown("### 📊 Resumo do Reajuste por IGP-M")
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Total de Parcelas", f"{res_igpm['n_parcelas']}")
+            k1.metric("Valor Inicial (Ciclo 1)", format_currency_br(res_igpm['val_base_1']))
+            k1.metric("Valor Final (Último Ciclo)", format_currency_br(res_igpm['val_final_ult']))
+            k1.metric("Aumento Acumulado", format_currency_br(res_igpm['dif_igpm']), delta=f"R$ {res_igpm['dif_igpm']:,.2f}")
+
+            st.markdown("---")
+
             st.markdown("### 📥 Baixar Relatórios do IGP-M")
             col_d1, col_d2 = st.columns(2)
             with col_d1:
                 st.download_button(
                     "📄 Relatório Word com Comprovantes (.docx)",
-                    data=word_bytes,
-                    file_name=f"Relatorio_IGPM_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.docx",
+                    data=res_igpm['word_bytes'],
+                    file_name=f"Relatorio_IGPM_{res_igpm['timestamp']}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key="dl_word_igpm",
                     use_container_width=True
                 )
             with col_d2:
                 st.download_button(
                     "📊 Planilha Excel com IGP-M (.xlsx)",
-                    data=excel_out,
-                    file_name=f"Parcelas_IGPM_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    data=res_igpm['excel_out'],
+                    file_name=f"Parcelas_IGPM_{res_igpm['timestamp']}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_excel_igpm",
                     use_container_width=True
                 )
 
             st.markdown("---")
             st.subheader("📊 Detalhes dos Ciclos de Reajuste")
 
-            for rc in resultados_ciclo:
+            for rc in res_igpm['resultados_ciclo']:
                 ciclo_n = rc.get("ciclo_numero", "?")
                 parcelas = rc.get("parcelas", "?")
                 val_antes = rc.get("valor_antes", 0)
